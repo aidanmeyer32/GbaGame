@@ -48,5 +48,12 @@ void sprite_move(struct Sprite* sprite, int dx, int dy) {
     int x = sprite->attribute1 & 0x1ff;
     sprite_position(sprite, x + dx, y + dy);
 }
-
+void sprite_update_all() {
+    for (int i = 0; i < next_sprite_index; i++) {
+        sprite_attribute_memory[i * 4 + 0] = sprites[i].attribute0; // Attribute 0
+        sprite_attribute_memory[i * 4 + 1] = sprites[i].attribute1; // Attribute 1
+        sprite_attribute_memory[i * 4 + 2] = sprites[i].attribute2; // Attribute 2
+        sprite_attribute_memory[i * 4 + 3] = 0; // Attribute 3 (not used in this case)
+    }
+}
 // Additional functions like sprite_set_vertical_flip, sprite_set_horizontal_flip, sprite_set_offset, etc., can be implemented similarly.

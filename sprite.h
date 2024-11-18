@@ -27,19 +27,6 @@ enum SpriteSize {
     SIZE_32_64
 };
 
-// Global array to hold all sprites
-
-extern volatile unsigned short* bg0_control;
-extern volatile unsigned short* bg1_control;
-extern volatile unsigned short* bg2_control;
-extern volatile unsigned short* bg3_control;
-
-extern volatile unsigned long* display_control;
-extern volatile unsigned short* bg_palette;
-extern volatile unsigned short* scanline_counter;
-extern struct Sprite sprites[NUM_SPRITES];
-extern int next_sprite_index;
-
 // Function declarations
 struct Sprite* sprite_init(int x, int y, enum SpriteSize size, int horizontal_flip, int vertical_flip, int tile_index, int priority);
 void sprite_position(struct Sprite* sprite, int x, int y);

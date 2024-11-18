@@ -10,6 +10,10 @@
 #include "map.h"
 #include "map2.h"
 
+// include sprite files
+#include "koopa.h"
+#include "sprite.h"
+
 /* the width and height of the screen */
 #define WIDTH 240
 #define HEIGHT 160
@@ -18,6 +22,9 @@
 #define MODE0 0x00
 #define MODE1 0x01
 #define MODE2 0x02
+
+// define sprite enable bits
+#define SPRITE_ENABLE 0x1000 
 
 /* enable bits for the four tile layers */
 #define BG0_ENABLE 0x100
@@ -115,16 +122,17 @@ void delay(unsigned int amount) {
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg0 on */
-    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE;
+    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE;
 
     /* setup the background 0 */
     setup_background();
 
-
+    struct Sprite* koopa = sprite_init(40, 20, SIZE_16_32, 0, 0, 0, 0); // Using SIZE_16_32 for a single frame
     /* loop forever */
     while (1) {
-
         wait_vblank();
+        //update sprite
+        sprite_update_all();
         /* delay some */
         delay(50);
     }
