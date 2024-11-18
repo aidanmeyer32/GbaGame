@@ -1,6 +1,6 @@
 /*
  * sprites.c
- * program which demonstrates GBA sprites
+ * gba project!
  */
 
 #define SCREEN_WIDTH 240
@@ -213,23 +213,23 @@ struct Sprite* sprite_init(int x, int y, enum SpriteSize size,
 
     /* set up the first attribute */
     sprites[index].attribute0 = y |             /* y coordinate */
-                            (0 << 8) |          /* rendering mode */
-                            (0 << 10) |         /* gfx mode */
-                            (0 << 12) |         /* mosaic */
-                            (1 << 13) |         /* color mode, 0:16, 1:256 */
-                            (shape_bits << 14); /* shape */
+        (0 << 8) |          /* rendering mode */
+        (0 << 10) |         /* gfx mode */
+        (0 << 12) |         /* mosaic */
+        (1 << 13) |         /* color mode, 0:16, 1:256 */
+        (shape_bits << 14); /* shape */
 
     /* set up the second attribute */
     sprites[index].attribute1 = x |             /* x coordinate */
-                            (0 << 9) |          /* affine flag */
-                            (h << 12) |         /* horizontal flip flag */
-                            (v << 13) |         /* vertical flip flag */
-                            (size_bits << 14);  /* size */
+        (0 << 9) |          /* affine flag */
+        (h << 12) |         /* horizontal flip flag */
+        (v << 13) |         /* vertical flip flag */
+        (size_bits << 14);  /* size */
 
     /* setup the second attribute */
     sprites[index].attribute2 = tile_index |   // tile index */
-                            (priority << 10) | // priority */
-                            (0 << 12);         // palette bank (only 16 color)*/
+        (priority << 10) | // priority */
+        (0 << 12);         // palette bank (only 16 color)*/
 
     /* return pointer to this sprite */
     return &sprites[index];
@@ -325,8 +325,14 @@ struct Koopa {
     /* the actual sprite attribute info */
     struct Sprite* sprite;
 
-    /* the x and y postion */
+    /* the x and y postion in pixels */
     int x, y;
+
+    /* the koopa's y velocity in 1/256 pixels/second */
+    int yvel;
+
+    /* the koopa's y acceleration in 1/256 pixels/second^2 */
+    int gravity; 
 
     /* which frame of the animation he is on */
     int frame;
@@ -342,16 +348,22 @@ struct Koopa {
 
     /* the number of pixels away from the edge of the screen the koopa stays */
     int border;
+
+    /* if the koopa is currently falling */
+    int falling;
 };
 
 /* initialize the koopa */
 void koopa_init(struct Koopa* koopa) {
     koopa->x = 100;
     koopa->y = 113;
+    koopa->yvel = 0;
+    koopa->gravity = 50;
     koopa->border = 40;
     koopa->frame = 0;
     koopa->move = 0;
     koopa->counter = 0;
+    koopa->falling = 0;
     koopa->animation_delay = 8;
     koopa->sprite = sprite_init(koopa->x, koopa->y, SIZE_16_32, 0, 0, koopa->frame, 0);
 }
@@ -386,6 +398,7 @@ int koopa_right(struct Koopa* koopa) {
     }
 }
 
+/* stop the koopa from walking left/right */
 void koopa_stop(struct Koopa* koopa) {
     koopa->move = 0;
     koopa->frame = 0;
@@ -393,8 +406,103 @@ void koopa_stop(struct Koopa* koopa) {
     sprite_set_offset(koopa->sprite, koopa->frame);
 }
 
+/* start the koopa jumping, unless already fgalling */
+void koopa_jump(struct Koopa* koopa) {
+    if (!koopa->falling) {
+        koopa->yvel = -1350;
+        koopa->falling = 1;
+    }
+}
+
+/* finds which tile a screen coordinate maps to, taking scroll into acco  unt */
+unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
+        const unsigned short* tilemap, int tilemap_w, int tilemap_h) {
+
+    /* adjust for the scroll */
+    x += xscroll;
+    y += yscroll;
+
+    /* convert from screen coordinates to tile coordinates */
+    x >>= 3;
+    y >>= 3;
+
+    /* account for wraparound */
+    while (x >= tilemap_w) {
+        x -= tilemap_w;
+    }
+    while (y >= tilemap_h) {
+        y -= tilemap_h;
+    }
+    while (x < 0) {
+        x += tilemap_w;
+    }
+    while (y < 0) {
+        y += tilemap_h;
+    }
+
+    /* the larger screen maps (bigger than 32x32) are made of multiple stitched
+       together - the offset is used for finding which screen block we are in
+       for these cases */
+    int offset = 0;
+
+    /* if the width is 64, add 0x400 offset to get to tile maps on right   */
+    if (tilemap_w == 64 && x >= 32) {
+        x -= 32;
+        offset += 0x400;
+    }
+
+    /* if height is 64 and were down there */
+    if (tilemap_h == 64 && y >= 32) {
+        y -= 32;
+
+        /* if width is also 64 add 0x800, else just 0x400 */
+        if (tilemap_w == 64) {
+            offset += 0x800;
+        } else {
+            offset += 0x400;
+        }
+    }
+
+    /* find the index in this tile map */
+    int index = y * 32 + x;
+
+    /* return the tile */
+    return tilemap[index + offset];
+}
+
 /* update the koopa */
-void koopa_update(struct Koopa* koopa) {
+void koopa_update(struct Koopa* koopa, int xscroll) {
+    /* update y position and speed if falling */
+    if (koopa->falling) {
+        koopa->y += (koopa->yvel >> 8);
+        koopa->yvel += koopa->gravity;
+    }
+
+    /* check which tile the koopa's feet are over */
+    unsigned short tile = tile_lookup(koopa->x + 8, koopa->y + 32, xscroll, 0, map,
+            map_width, map_height);
+
+    /* if it's block tile
+     * these numbers refer to the tile indices of the blocks the koopa can walk on */
+    if ((tile >= 1 && tile <= 6) || 
+            (tile >= 12 && tile <= 17)) {
+        /* stop the fall! */
+        koopa->falling = 0;
+        koopa->yvel = 0;
+
+        /* make him line up with the top of a block works by clearing out the lower bits to 0 */
+        koopa->y &= ~0x3;
+
+        /* move him down one because there is a one pixel gap in the image */
+        koopa->y++;
+
+    } else {
+        /* he is falling now */
+        koopa->falling = 1;
+    }
+
+
+    /* update animation if moving */
     if (koopa->move) {
         koopa->counter++;
         if (koopa->counter >= koopa->animation_delay) {
@@ -407,6 +515,7 @@ void koopa_update(struct Koopa* koopa) {
         }
     }
 
+    /* set on screen position */
     sprite_position(koopa->sprite, koopa->x, koopa->y);
 }
 
@@ -424,7 +533,6 @@ int main() {
     /* clear all the sprites on screen now */
     sprite_clear();
 
-
     /* create the koopa */
     struct Koopa koopa;
     koopa_init(&koopa);
@@ -435,7 +543,7 @@ int main() {
     /* loop forever */
     while (1) {
         /* update the koopa */
-        koopa_update(&koopa);
+        koopa_update(&koopa, xscroll);
 
         /* now the arrow keys move the koopa */
         if (button_pressed(BUTTON_RIGHT)) {
@@ -450,13 +558,18 @@ int main() {
             koopa_stop(&koopa);
         }
 
+        /* check for jumping */
+        if (button_pressed(BUTTON_A)) {
+            koopa_jump(&koopa);
+        }
+
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
         *bg0_x_scroll = xscroll;
         sprite_update_all();
 
         /* delay some */
-        delay(100);
+        delay(300);
     }
 }
 
