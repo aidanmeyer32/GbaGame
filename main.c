@@ -3,11 +3,14 @@
  * gba project!
  */
 
+#include <stdio.h>
+
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 160
 
 /* include the background image we are using */
 #include "background.h"
+#include "ascii.h"
 
 /* include the sprite image we are using */
 #include "koopa.h"
@@ -18,7 +21,9 @@
 /* the tile mode flags needed for display control register */
 #define MODE0 0x00
 #define BG0_ENABLE 0x100
-
+#define BG1_ENABLE 0x200
+#define BG2_ENABLE 0x400
+#define BG3_ENABLE 0x800
 /* flags to set sprite handling in display control register */
 #define SPRITE_MAP_2D 0x0
 #define SPRITE_MAP_1D 0x40
@@ -27,7 +32,9 @@
 
 /* the control registers for the four tile layers */
 volatile unsigned short* bg0_control = (volatile unsigned short*) 0x4000008;
-
+volatile unsigned short* bg1_control = (volatile unsigned short*) 0x400000a;
+volatile unsigned short* bg2_control = (volatile unsigned short*) 0x400000c;
+volatile unsigned short* bg3_control = (volatile unsigned short*) 0x400000e;
 /* palette is always 256 colors */
 #define PALETTE_SIZE 256
 
@@ -138,17 +145,32 @@ void setup_background() {
     memcpy16_dma((unsigned short*) char_block(0), (unsigned short*) background_data,
             (background_width * background_height) / 2);
 
+   /* load the ascii data into char block 1 */
+    memcpy16_dma((unsigned short*) char_block(1), (unsigned short*) ascii_data, (background_width * background_height) / 2);
+    
     /* set all control the bits in this register */
-    *bg0_control = 0 |    /* priority, 0 is highest, 3 is lowest */
+    
+    *bg0_control = 1 |    /* priority, 0 is highest, 3 is lowest */
         (0 << 2)  |       /* the char block the image data is stored in */
         (0 << 6)  |       /* the mosaic flag */
         (1 << 7)  |       /* color mode, 0 is 16 colors, 1 is 256 colors */
         (16 << 8) |       /* the screen block the tile data is stored in */
         (1 << 13) |       /* wrapping flag */
         (0 << 14);        /* bg size, 0 is 256x256 */
+    
+    *bg1_control = 0 |
+        (1 << 2) |
+        (0 << 6) |
+        (1 << 7) |
+        (24 << 8) |
+        (0 << 13) |
+        (0 << 14);
 
     /* load the tile data into screen block 16 */
     memcpy16_dma((unsigned short*) screen_block(16), (unsigned short*) map, map_width * map_height);
+
+    /* load the ascii characters data into screen block 24 */
+    memcpy16_dma((unsigned short*) screen_block(24), (unsigned short*) map, map_width * map_height);
 }
 
 /* just kill time */
@@ -518,11 +540,23 @@ void koopa_update(struct Koopa* koopa, int xscroll) {
     /* set on screen position */
     sprite_position(koopa->sprite, koopa->x, koopa->y);
 }
+void set_text(char* str, int row, int col) {
+    int index = row * 32 + col;
 
+    int missing = 32;
+
+    volatile unsigned short* ptr = screen_block(24);
+
+    while (*str) {
+        ptr[index] = *str - missing;
+        index++;
+        str++;
+    }
+}
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg0 on */
-    *display_control = MODE0 | BG0_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
 
     /* setup the background 0 */
     setup_background();
@@ -562,7 +596,10 @@ int main() {
         if (button_pressed(BUTTON_A)) {
             koopa_jump(&koopa);
         }
-
+        char text[32];
+        sprintf(text, "time left is %d", 1);
+        set_text(text, 0, 0);
+        
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
         *bg0_x_scroll = xscroll;
