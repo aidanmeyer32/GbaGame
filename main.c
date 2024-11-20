@@ -145,7 +145,7 @@ void setup_background() {
     memcpy16_dma((unsigned short*) char_block(0), (unsigned short*) background_data,
             (background_width * background_height) / 2);
 
-   /* load the ascii data into char block 1 */
+    /* load the ascii data into char block 1 */
     memcpy16_dma((unsigned short*) char_block(1), (unsigned short*) ascii_data, (background_width * background_height) / 2);
     
     /* set all control the bits in this register */
@@ -163,14 +163,14 @@ void setup_background() {
         (0 << 6) |
         (1 << 7) |
         (24 << 8) |
-        (0 << 13) |
+        (1 << 13) |
         (0 << 14);
 
     /* load the tile data into screen block 16 */
     memcpy16_dma((unsigned short*) screen_block(16), (unsigned short*) map, map_width * map_height);
 
     /* load the ascii characters data into screen block 24 */
-    memcpy16_dma((unsigned short*) screen_block(24), (unsigned short*) map, map_width * map_height);
+    //memcpy16_dma((unsigned short*) screen_block(24), (unsigned short*) map, map_width * map_height);
 }
 
 /* just kill time */
@@ -553,10 +553,20 @@ void set_text(char* str, int row, int col) {
         str++;
     }
 }
+int timer();
+
+/* pass a 1 into either a or b. A is if its a block, B is if its a sprite */
+/* returns a 1 if its a block, returns a 2 if its a sprite */
+int score(int a, int b);
+
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg0 on */
     *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+
+    
+    char str[32];
+    char points[32];
 
     /* setup the background 0 */
     setup_background();
@@ -573,7 +583,7 @@ int main() {
 
     /* set initial scroll to 0 */
     int xscroll = 0;
-
+    
     /* loop forever */
     while (1) {
         /* update the koopa */
@@ -596,15 +606,19 @@ int main() {
         if (button_pressed(BUTTON_A)) {
             koopa_jump(&koopa);
         }
-        char text[32];
-        sprintf(text, "time left is %d", 1);
-        set_text(text, 0, 0);
+        
+        /* timer stuff */
+        sprintf(str, "TIME: %d", timeLeft);
+        set_text(str, 0, 0);
+        
+        sprintf(points, "POINTS: %d", score(1, 0));
+        set_text(points, 2, 0);
         
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
         *bg0_x_scroll = xscroll;
         sprite_update_all();
-
+        
         /* delay some */
         delay(300);
     }
