@@ -374,7 +374,9 @@ struct Koopa {
     /* if the koopa is currently falling */
     int falling;
 };
-
+struct box {
+    int x, y, isVisible;
+}
 /* initialize the koopa */
 void koopa_init(struct Koopa* koopa) {
     koopa->x = 100;
