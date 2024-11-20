@@ -610,7 +610,7 @@ int main() {
         }
         
         /* timer stuff */
-        sprintf(str, "TIME: %d", timeLeft);
+        sprintf(str, "TIME: %d", 30);
         set_text(str, 0, 0);
         
         sprintf(points, "POINTS: %d", score(1, 0));
