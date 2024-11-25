@@ -376,7 +376,7 @@ struct Koopa {
 };
 struct box {
     int x, y, isVisible;
-}
+};
 /* initialize the koopa */
 void koopa_init(struct Koopa* koopa) {
     koopa->x = 100;
