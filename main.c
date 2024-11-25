@@ -29,9 +29,12 @@
 #define SPRITE_MAP_1D 0x40
 #define SPRITE_ENABLE 0x1000
 
-//define offsets for the box
+//define offsets for box
 #define BOX_PALETTE_OFFSET 16
 #define BOX_IMAGE_OFFSET 512
+//define width and height of box
+#define MYSTERY_BOX_WIDTH 16
+#define MYSTERY_BOX_HEIGHT 16
 /* the control registers for the four tile layers */
 volatile unsigned short* bg0_control = (volatile unsigned short*) 0x4000008;
 volatile unsigned short* bg1_control = (volatile unsigned short*) 0x400000a;
@@ -343,52 +346,25 @@ void setup_sprite_image() {
     /* load the image into sprite image memory */
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) koopa_data, (koopa_width * koopa_height) / 2);
 }
+/*
 void setup_box_sprite_image() {
-    /* load the palette for the box into sprite palette memory
-       Offset to avoid overwriting other sprite palettes */
-    //memcpy16_dma((unsigned short*)(sprite_palette + BOX_PALETTE_OFFSET), (unsigned short*) koopa_palette, PALETTE_SIZE);
+    memcpy16_dma((unsigned short*) (sprite_palette + BOX_PALETTE_OFFSET), (unsigned short*) box_palette, PALETTE_SIZE);
 
-    /* load the image data for the box into sprite image memory
-       Offset to avoid overwriting Koopa's image data */
-    //memcpy16_dma((unsigned short*)(sprite_image_memory + BOX_IMAGE_OFFSET), (unsigned short*) box_data, (box_width * box_height) / 2);
+    memcpy16_dma((unsigned short*) (sprite_image_memory + BOX_IMAGE_OFFSET), (unsigned short*) box_data, (MYSTERY_BOX_WIDTH * MYSTERY_BOX_HEIGHT) / 2);
 }
+*/
 struct Box {
     struct Sprite* sprite;
-    
     int x, y;
-    
-    int yvel;
-
-    int gravity;
-
-    int border;
-
-    int frame;
-    
-    int move;
-    
-    int counter;
-    
-    int falling;    
 };
-
+/*
 void box_init(struct Box* box){
-    box->x = 100;
-    box->y = 113;
-    box->yvel = 0;
-    box->gravity = 50;
-    box->border = 40;
-    box->frame = 0;
-    box->move = 0;
-    box->counter = 0;
-    box->falling = 0;
-    box->sprite = sprite_init(box->x, box->y, SIZE_8_8, 0, 0, box->frame, 0);
+    box->x = 50;
+    box->y = 100;
+    box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 0, 0);
 
 }
-void update_box(struct Box* box){
-    //all that needs to go in here is collision implementation
-    sprite_position(box->sprite, box->x, box->y);
-}
+*/
 /* a struct for the koopa's logic and behavior */
 struct Koopa {
     /* the actual sprite attribute info */
@@ -621,7 +597,7 @@ int main() {
     setup_sprite_image();
 
     //setup box sprite image data
-    setup_box_sprite_image();
+    //setup_box_sprite_image();
 
     /* clear all the sprites on screen now */
     sprite_clear();
@@ -631,8 +607,8 @@ int main() {
     koopa_init(&koopa);
     
     //create box sprite
-    struct Box box;
-    box_init(&box);
+    //struct Box box;
+    //box_init(&box);
     /* set initial scroll to 0 */
     int xscroll = 0;
     
@@ -641,8 +617,9 @@ int main() {
         /* update the koopa */
         koopa_update(&koopa, xscroll);
         //update box
-        update_box(&box);
-        /* now the arrow keys move the koopa */
+       
+        //sprite_position(box.sprite, box.x, box.y);
+         /* now the arrow keys move the koopa */
         if (button_pressed(BUTTON_RIGHT)) {
             if (koopa_right(&koopa)) {
                 xscroll++;
