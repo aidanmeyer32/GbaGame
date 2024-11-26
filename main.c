@@ -11,7 +11,7 @@
 /* include the background image we are using */
 #include "background.h"
 #include "ascii.h"
-
+#include "map2.h"
 /* include the sprite image we are using */
 #include "koopa.h"
 
@@ -29,12 +29,15 @@
 #define SPRITE_MAP_1D 0x40
 #define SPRITE_ENABLE 0x1000
 
+
 //define offsets for box
-#define BOX_PALETTE_OFFSET 16
+#define BOX_PALETTE_OFFSET 32
 #define BOX_IMAGE_OFFSET 512
 //define width and height of box
 #define MYSTERY_BOX_WIDTH 16
 #define MYSTERY_BOX_HEIGHT 16
+
+
 /* the control registers for the four tile layers */
 volatile unsigned short* bg0_control = (volatile unsigned short*) 0x4000008;
 volatile unsigned short* bg1_control = (volatile unsigned short*) 0x400000a;
@@ -67,6 +70,10 @@ volatile unsigned short* buttons = (volatile unsigned short*) 0x04000130;
 /* scrolling registers for backgrounds */
 volatile short* bg0_x_scroll = (unsigned short*) 0x4000010;
 volatile short* bg0_y_scroll = (unsigned short*) 0x4000012;
+volatile short* bg1_xscroll = (unsigned short*) 0x4000014;
+volatile short* bg1_y_scroll = (unsigned short*) 0x4000016;
+volatile short* bg2_x_scroll = (unsigned short*) 0x4000018;
+volatile short* bg2_y_scroll = (unsigned short*) 0x4000020;
 
 /* the bit positions indicate each button - the first bit is for A, second for
  * B, and so on, each constant below can be ANDED into the register to get the
@@ -153,6 +160,9 @@ void setup_background() {
     /* load the ascii data into char block 1 */
     memcpy16_dma((unsigned short*) char_block(1), (unsigned short*) ascii_data, (background_width * background_height) / 2);
     
+    /* load the background into char block 3 */
+    memcpy16_dma((unsigned short*) char_block(2), (unsigned short*) background_data, (background_width * background_height) / 2);
+
     /* set all control the bits in this register */
     
     *bg0_control = 1 |    /* priority, 0 is highest, 3 is lowest */
@@ -171,11 +181,21 @@ void setup_background() {
         (1 << 13) |
         (0 << 14);
 
+    *bg2_control = 2 |
+        (0 << 2) |
+        (0 << 6) |
+        (1 << 7) |
+        (16 << 8) |
+        (1 << 13) |
+        (0 << 14);
+
     /* load the tile data into screen block 16 */
     memcpy16_dma((unsigned short*) screen_block(16), (unsigned short*) map, map_width * map_height);
 
     /* load the ascii characters data into screen block 24 */
     //memcpy16_dma((unsigned short*) screen_block(24), (unsigned short*) map, map_width * map_height);
+
+    memcpy16_dma((unsigned short*) screen_block(8), (unsigned short*) map2, map_width * map_height);
 }
 
 /* just kill time */
@@ -346,25 +366,25 @@ void setup_sprite_image() {
     /* load the image into sprite image memory */
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) koopa_data, (koopa_width * koopa_height) / 2);
 }
-/*
+
 void setup_box_sprite_image() {
     memcpy16_dma((unsigned short*) (sprite_palette + BOX_PALETTE_OFFSET), (unsigned short*) box_palette, PALETTE_SIZE);
 
     memcpy16_dma((unsigned short*) (sprite_image_memory + BOX_IMAGE_OFFSET), (unsigned short*) box_data, (MYSTERY_BOX_WIDTH * MYSTERY_BOX_HEIGHT) / 2);
 }
-*/
+
 struct Box {
     struct Sprite* sprite;
     int x, y;
 };
-/*
+
 void box_init(struct Box* box){
     box->x = 50;
     box->y = 100;
     box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 0, 0);
 
 }
-*/
+
 /* a struct for the koopa's logic and behavior */
 struct Koopa {
     /* the actual sprite attribute info */
@@ -584,7 +604,7 @@ int score(int a, int b);
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg0 on */
-    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
+    *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | BG2_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
 
     
     char str[32];
@@ -593,7 +613,7 @@ int main() {
     /* setup the background 0 */
     setup_background();
 
-    /* setup the sprite image data */
+    /* setup the koopa sprite image data */
     setup_sprite_image();
 
     //setup box sprite image data
@@ -607,10 +627,11 @@ int main() {
     koopa_init(&koopa);
     
     //create box sprite
-    //struct Box box;
-    //box_init(&box);
+    struct Box box;
+    box_init(&box);
     /* set initial scroll to 0 */
     int xscroll = 0;
+    int bg1_x_scroll = 0;
     
     /* loop forever */
     while (1) {
@@ -618,15 +639,17 @@ int main() {
         koopa_update(&koopa, xscroll);
         //update box
        
-        //sprite_position(box.sprite, box.x, box.y);
+        sprite_position(box.sprite, box.x, box.y);
          /* now the arrow keys move the koopa */
         if (button_pressed(BUTTON_RIGHT)) {
             if (koopa_right(&koopa)) {
                 xscroll++;
+                bg1_x_scroll += 2;
             }
         } else if (button_pressed(BUTTON_LEFT)) {
             if (koopa_left(&koopa)) {
                 xscroll--;
+                bg1_x_scroll += 2;
             }
         } else {
             koopa_stop(&koopa);
@@ -647,6 +670,7 @@ int main() {
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
         *bg0_x_scroll = xscroll;
+        *bg1_xscroll = bg1_x_scroll;
         sprite_update_all();
         
         /* delay some */
