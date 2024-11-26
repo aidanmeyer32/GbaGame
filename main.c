@@ -11,7 +11,7 @@
 /* include the background image we are using */
 #include "background.h"
 #include "ascii.h"
-#include "map2.h"
+//#include "map2.h"
 
 /* include the sprite image we are using */
 #include "koopa.h"
@@ -345,7 +345,7 @@ void setup_sprite_image() {
     memcpy16_dma((unsigned short*) sprite_palette, (unsigned short*) sprites_palette, PALETTE_SIZE);
 
     /* load the image into sprite image memory */
-    memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) sprites_data, (koopa_width * koopa_height) / 2);
+    memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) sprites_data, (sprites_width * sprites_height) / 2);
 }
 /*
 void setup_box_sprite_image() {
@@ -358,14 +358,14 @@ struct Box {
     struct Sprite* sprite;
     int x, y;
 };
-/*
+
 void box_init(struct Box* box){
     box->x = 50;
     box->y = 100;
-    box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 0, 0);
+    box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 3, 0);
 
 }
-*/
+
 /* a struct for the koopa's logic and behavior */
 struct Koopa {
     /* the actual sprite attribute info */
