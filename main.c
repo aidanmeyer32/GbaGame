@@ -11,6 +11,7 @@
 /* include the background image we are using */
 #include "background.h"
 #include "ascii.h"
+#include "map2.h"
 
 /* include the sprite image we are using */
 #include "koopa.h"
