@@ -347,25 +347,26 @@ void setup_sprite_image() {
     /* load the image into sprite image memory */
     memcpy16_dma((unsigned short*) sprite_image_memory, (unsigned short*) sprites_data, (sprites_width * sprites_height) / 2);
 }
-/*
-void setup_box_sprite_image() {
-    memcpy16_dma((unsigned short*) (sprite_palette + BOX_PALETTE_OFFSET), (unsigned short*) box_palette, PALETTE_SIZE);
-
-    memcpy16_dma((unsigned short*) (sprite_image_memory + BOX_IMAGE_OFFSET), (unsigned short*) box_data, (MYSTERY_BOX_WIDTH * MYSTERY_BOX_HEIGHT) / 2);
-}
-*/
 struct Box {
     struct Sprite* sprite;
     int x, y;
 };
 
 void box_init(struct Box* box){
-    box->x = 50;
-    box->y = 100;
-    box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 3, 0);
+    box->x = 180;
+    box->y = 72;
+    box->sprite = sprite_init(box->x, box->y, SIZE_16_16, 0, 0, 32, 0);
 
 }
+void update_box(struct Box* box, int xscroll){
+    int screen_x = box->x - xscroll;
+    sprite_position(box->sprite, screen_x, box->y);
 
+
+}
+int check_collision(int x1, int y1, int w1, int h1, int x2, int y2, int w2, int h2) {
+    return (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2);
+}
 /* a struct for the koopa's logic and behavior */
 struct Koopa {
     /* the actual sprite attribute info */
@@ -516,7 +517,7 @@ unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
 }
 
 /* update the koopa */
-void koopa_update(struct Koopa* koopa, int xscroll) {
+void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int score, int moving_left) {
     /* update y position and speed if falling */
     if (koopa->falling) {
         koopa->y += (koopa->yvel >> 8);
@@ -545,8 +546,34 @@ void koopa_update(struct Koopa* koopa, int xscroll) {
         /* he is falling now */
         koopa->falling = 1;
     }
+    int box_screen_x = box->x - xscroll;
+    if (check_collision(koopa->x, koopa->y, 16, 32, box_screen_x, box->y, MYSTERY_BOX_WIDTH, MYSTERY_BOX_HEIGHT)) {
+        /* Handle vertical collision (from above or below) */
+        if (koopa->y + 32 > box->y && koopa->y < box->y) {
+            koopa->y = box->y - 32; // Align Koopa above the box
+            koopa->falling = 0;
+            koopa->yvel = 0;
 
+            /* Increment the score when hitting from above */
+            (score)++;
+            box->x += 256; // Move the box off-screen to prevent re-triggering
+        } else if (koopa->y < box->y + MYSTERY_BOX_HEIGHT && koopa->y + 32 > box->y + MYSTERY_BOX_HEIGHT) {
+            koopa->y = box->y + MYSTERY_BOX_HEIGHT; // Align Koopa below the box
+            koopa->yvel = 0; // Stop upward movement
+        }
 
+        /* Handle horizontal collisions */
+        if (koopa->x + 16 > box_screen_x && koopa->x < box_screen_x) {
+            koopa->x = box_screen_x - 16; // Align to the left of the box
+        } else if (koopa->x < box_screen_x + MYSTERY_BOX_WIDTH && koopa->x + 16 > box_screen_x + MYSTERY_BOX_WIDTH) {
+            koopa->x = box_screen_x + MYSTERY_BOX_WIDTH; // Align to the right of the box
+        }
+    }
+    if (moving_left && box_screen_x > SCREEN_WIDTH) {
+        box->x -= 512; // Move the box to the previous map instance
+    } else if (!moving_left && box_screen_x + MYSTERY_BOX_WIDTH < 0) {
+        box->x += 512; // Move the box to the next map instance
+    }
     /* update animation if moving */
     if (koopa->move) {
         koopa->counter++;
@@ -581,6 +608,7 @@ int timer();
 /* pass a 1 into either a or b. A is if its a block, B is if its a sprite */
 /* returns a 1 if its a block, returns a 2 if its a sprite */
 int score(int a, int b);
+int testscore = 0; //score tester - replace 
 
 /* the main function */
 int main() {
@@ -608,24 +636,28 @@ int main() {
     koopa_init(&koopa);
     
     //create box sprite
-    //struct Box box;
-    //box_init(&box);
+    struct Box box;
+    box_init(&box);
     /* set initial scroll to 0 */
     int xscroll = 0;
+    
+    //moving left variable for box placement
+    int moving_left = 0;
     
     /* loop forever */
     while (1) {
         /* update the koopa */
-        koopa_update(&koopa, xscroll);
+        koopa_update(&koopa, &box, xscroll, testscore, moving_left); //aidan - replace this with actual score variable
         //update box
-       
-        //sprite_position(box.sprite, box.x, box.y);
+        update_box(&box, xscroll);   
          /* now the arrow keys move the koopa */
         if (button_pressed(BUTTON_RIGHT)) {
+            moving_left = 0;
             if (koopa_right(&koopa)) {
                 xscroll++;
             }
         } else if (button_pressed(BUTTON_LEFT)) {
+            moving_left = 1;
             if (koopa_left(&koopa)) {
                 xscroll--;
             }
