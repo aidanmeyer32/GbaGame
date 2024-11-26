@@ -555,18 +555,8 @@ void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int score, 
             koopa->yvel = 0;
 
             /* Increment the score when hitting from above */
-            (score)++;
+            score++;
             box->x += 256; // Move the box off-screen to prevent re-triggering
-        } else if (koopa->y < box->y + MYSTERY_BOX_HEIGHT && koopa->y + 32 > box->y + MYSTERY_BOX_HEIGHT) {
-            koopa->y = box->y + MYSTERY_BOX_HEIGHT; // Align Koopa below the box
-            koopa->yvel = 0; // Stop upward movement
-        }
-
-        /* Handle horizontal collisions */
-        if (koopa->x + 16 > box_screen_x && koopa->x < box_screen_x) {
-            koopa->x = box_screen_x - 16; // Align to the left of the box
-        } else if (koopa->x < box_screen_x + MYSTERY_BOX_WIDTH && koopa->x + 16 > box_screen_x + MYSTERY_BOX_WIDTH) {
-            koopa->x = box_screen_x + MYSTERY_BOX_WIDTH; // Align to the right of the box
         }
     }
     if (moving_left && box_screen_x > SCREEN_WIDTH) {
