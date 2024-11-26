@@ -516,8 +516,9 @@ unsigned short tile_lookup(int x, int y, int xscroll, int yscroll,
     return tilemap[index + offset];
 }
 
+int score(int playerScore, int timeLeft);
 /* update the koopa */
-void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int score, int moving_left) {
+void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int* playerScore, int moving_left, int time) {
     /* update y position and speed if falling */
     if (koopa->falling) {
         koopa->y += (koopa->yvel >> 8);
@@ -555,7 +556,7 @@ void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int score, 
             koopa->yvel = 0;
 
             /* Increment the score when hitting from above */
-            score++;
+            *playerScore = score(*playerScore, time);
             box->x += 256; // Move the box off-screen to prevent re-triggering
         }
     }
@@ -597,7 +598,6 @@ int timer();
 
 /* pass a 1 into either a or b. A is if its a block, B is if its a sprite */
 /* returns a 1 if its a block, returns a 2 if its a sprite */
-int score(int a, int b);
 int testscore = 0; //score tester - replace 
 
 /* the main function */
@@ -633,11 +633,12 @@ int main() {
     
     //moving left variable for box placement
     int moving_left = 0;
-    
+    int playerScore = 0;
+    int time = 30; 
     /* loop forever */
     while (1) {
         /* update the koopa */
-        koopa_update(&koopa, &box, xscroll, testscore, moving_left); //aidan - replace this with actual score variable
+        koopa_update(&koopa, &box, xscroll, &playerScore, moving_left, time); //aidan - replace this with actual score variable
         //update box
         update_box(&box, xscroll);   
          /* now the arrow keys move the koopa */
@@ -664,7 +665,7 @@ int main() {
         sprintf(str, "TIME: %d", 30);
         set_text(str, 0, 0);
         
-        sprintf(points, "POINTS: %d", score(1, 0));
+        sprintf(points, "POINTS: %d", playerScore);
         set_text(points, 2, 0);
         
         /* wait for vblank before scrolling and moving sprites */

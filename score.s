@@ -1,12 +1,12 @@
 .global score
 score:
-.top:
-    cmp r0, r1
-    bgt .block
-    blt .enemy
-.block:
-    mov r0, #1
+    mov r2, #0
+    cmp r1, r2
+    beq .reset
+    bgt .incr
+.reset:
+    mov r0, #0
     mov pc, lr
-.enemy:
-    mov r0, #2
+.incr:
+    add r0, r0, #1
     mov pc, lr
