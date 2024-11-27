@@ -4,7 +4,6 @@
  */
 
 #include <stdio.h>
-
 #define SCREEN_WIDTH 240
 #define SCREEN_HEIGHT 160
 
@@ -82,6 +81,12 @@ volatile short* bg0_y_scroll = (unsigned short*) 0x4000012;
 #define BUTTON_DOWN (1 << 7)
 #define BUTTON_R (1 << 8)
 #define BUTTON_L (1 << 9)
+
+volatile unsigned short* timer0_data = (volatile unsigned short*) 0x4000100;
+volatile unsigned short* timer0_control = (volatile unsigned short*) 0x4000102;
+
+#define TIMER_FREQ_1 0x0;
+#define TIMER_ENABLE 0x80;
 
 /* the scanline counter is a memory cell which is updated to indicate how
  * much of the screen has been drawn */
@@ -551,13 +556,14 @@ void koopa_update(struct Koopa* koopa, struct Box* box, int xscroll, int* player
     if (check_collision(koopa->x, koopa->y, 16, 32, box_screen_x, box->y, MYSTERY_BOX_WIDTH, MYSTERY_BOX_HEIGHT)) {
         /* Handle vertical collision (from above or below) */
         if (koopa->y + 32 > box->y && koopa->y < box->y) {
+            /* Increment the score when hitting from above */
+            *playerScore = score(*playerScore, time);
+            box->x += 256; // Move the box off-screen to prevent re-triggering
             koopa->y = box->y - 32; // Align Koopa above the box
             koopa->falling = 0;
             koopa->yvel = 0;
 
-            /* Increment the score when hitting from above */
-            *playerScore = score(*playerScore, time);
-            box->x += 256; // Move the box off-screen to prevent re-triggering
+
         }
     }
     if (moving_left && box_screen_x > SCREEN_WIDTH) {
@@ -594,18 +600,13 @@ void set_text(char* str, int row, int col) {
         str++;
     }
 }
-int timer();
-
-/* pass a 1 into either a or b. A is if its a block, B is if its a sprite */
-/* returns a 1 if its a block, returns a 2 if its a sprite */
-int testscore = 0; //score tester - replace 
-
+int gameover(int num);
 /* the main function */
 int main() {
     /* we set the mode to mode 0 with bg0 on */
     *display_control = MODE0 | BG0_ENABLE | BG1_ENABLE | SPRITE_ENABLE | SPRITE_MAP_1D;
 
-    
+    char instr[32]; 
     char str[32];
     char points[32];
 
@@ -634,11 +635,11 @@ int main() {
     //moving left variable for box placement
     int moving_left = 0;
     int playerScore = 0;
-    int time = 30; 
+    int timeLeft = 30;
     /* loop forever */
     while (1) {
         /* update the koopa */
-        koopa_update(&koopa, &box, xscroll, &playerScore, moving_left, time); //aidan - replace this with actual score variable
+        koopa_update(&koopa, &box, xscroll, &playerScore, moving_left, timeLeft);
         //update box
         update_box(&box, xscroll);   
          /* now the arrow keys move the koopa */
@@ -660,19 +661,28 @@ int main() {
         if (button_pressed(BUTTON_A)) {
             koopa_jump(&koopa);
         }
-        
-        /* timer stuff */
-        sprintf(str, "TIME: %d", 30);
-        set_text(str, 0, 0);
-        
+        sprintf(instr, "SCORE 10 TO WIN");
+        set_text(instr, 3, 0);
+        /* timer */
         sprintf(points, "POINTS: %d", playerScore);
         set_text(points, 2, 0);
+        
+        int ending = gameover(playerScore);
+        if (ending == 0) {
+        // do nothing
+        } else if (ending == 1) {
+            sprintf(points, "");
+            set_text(points, 2, 0);
+            
+            sprintf(str, "YOU WIN");
+            set_text(str, 0, 0);
+            while (1);
+        }
         
         /* wait for vblank before scrolling and moving sprites */
         wait_vblank();
         *bg0_x_scroll = xscroll;
         sprite_update_all();
-        
         /* delay some */
         delay(300);
     }
